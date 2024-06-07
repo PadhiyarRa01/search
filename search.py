@@ -1,17 +1,16 @@
 import streamlit as st
 import pandas as pd
-from elasticsearch import Elasticsearch, helpers
+from elasticsearch_async import AsyncElasticsearch
+from elasticsearch.exceptions import ElasticsearchException
 import re
 
 # Initialize Elasticsearch client
 def get_es_client():
-    return Elasticsearch(
-        hosts=[{'host': 'localhost', 'port': 9200}]
-    )
+    return AsyncElasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
 
 es = get_es_client()
 
-def index_data(es, index_name, df):
+async def index_data(es, index_name, df):
     actions = [
         {
             "_index": index_name,
@@ -19,20 +18,24 @@ def index_data(es, index_name, df):
         }
         for _, row in df.iterrows()
     ]
-    helpers.bulk(es, actions)
+    try:
+        await helpers.async_bulk(es, actions)
+        st.success("Data indexed successfully!")
+    except ElasticsearchException as e:
+        st.error(f"Error indexing data: {e}")
 
-def read_and_index_sheets(uploaded_file):
+async def read_and_index_sheets(uploaded_file):
     try:
         excel_data = pd.ExcelFile(uploaded_file)
         for sheet_name in excel_data.sheet_names:
             df = pd.read_excel(uploaded_file, sheet_name=sheet_name)
             df.columns = df.columns.str.lower()  # Lowercase column names
             df = df.applymap(lambda x: str(x).lower() if isinstance(x, str) else x)  # Lowercase all string data
-            index_data(es, sheet_name, df)
+            await index_data(es, sheet_name, df)
     except Exception as e:
         st.error(f"Error reading or indexing Excel file: {e}")
 
-def search_elasticsearch(es, index_name, keyword):
+async def search_elasticsearch(es, index_name, keyword):
     query = {
         "query": {
             "multi_match": {
@@ -41,16 +44,18 @@ def search_elasticsearch(es, index_name, keyword):
             }
         }
     }
-    res = es.search(index=index_name, body=query)
-    return res['hits']['hits']
+    try:
+        res = await es.search(index=index_name, body=query)
+        return res['hits']['hits']
+    except ElasticsearchException as e:
+        st.error(f"Error searching Elasticsearch: {e}")
+        return []
 
 # Streamlit app
 uploaded_file = st.file_uploader("Choose an Excel file", type=["xlsx"])
 
 if uploaded_file:
-    # Index the uploaded file
-    read_and_index_sheets(uploaded_file)
-    st.write("Data indexed successfully!")
+    await read_and_index_sheets(uploaded_file)
 
     # User input for the search keyword
     search_keyword = st.text_input("Enter keyword to search")
@@ -59,10 +64,8 @@ if uploaded_file:
         search_results = []
         excel_data = pd.ExcelFile(uploaded_file)
         for sheet_name in excel_data.sheet_names:
-            hits = search_elasticsearch(es, sheet_name, search_keyword)
-            if hits:
-                for hit in hits:
-                    search_results.append(hit['_source'])
+            hits = await search_elasticsearch(es, sheet_name, search_keyword)
+            search_results.extend(hits)
 
         # Display search results if any
         if search_results:
