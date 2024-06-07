@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from elasticsearch import Elasticsearch, helpers
-from elasticsearch.exceptions import ElasticsearchException
 import re
 
 # Initialize Elasticsearch client
@@ -20,9 +19,9 @@ def index_data(es, index_name, df):
     ]
     try:
         helpers.bulk(es, actions)
-        st.success("Data indexed successfully!")
-    except ElasticsearchException as e:
-        st.error(f"Error indexing data: {e}")
+        st.success(f"Data indexed successfully for sheet: {index_name}!")
+    except Exception as e:
+        st.error(f"Error indexing data for sheet {index_name}: {e}")
 
 def read_and_index_sheets(uploaded_file):
     try:
@@ -47,8 +46,8 @@ def search_elasticsearch(es, index_name, keyword):
     try:
         res = es.search(index=index_name, body=query)
         return res['hits']['hits']
-    except ElasticsearchException as e:
-        st.error(f"Error searching Elasticsearch: {e}")
+    except Exception as e:
+        st.error(f"Error searching Elasticsearch in index {index_name}: {e}")
         return []
 
 # Streamlit app
