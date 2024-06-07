@@ -5,9 +5,7 @@ import re
 
 # Initialize Elasticsearch client
 def get_es_client():
-    return Elasticsearch(
-        [{"host": "localhost", "port": 9200}]
-    )
+    return Elasticsearch(host='localhost', port=9200)
 
 es = get_es_client()
 
