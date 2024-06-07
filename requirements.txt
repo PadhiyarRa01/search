@@ -1,4 +1,4 @@
 streamlit
 pandas
 openpyxl
-elasticsearch
+elasticsearch==7.10.0
