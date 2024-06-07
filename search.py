@@ -6,10 +6,7 @@ import re
 # Initialize Elasticsearch client
 def get_es_client():
     return Elasticsearch(
-        hosts=[{"host": "localhost", "port": 9200}],
-        timeout=30,  # Optionally set a timeout
-        max_retries=10,  # Optionally set max retries
-        retry_on_timeout=True  # Optionally retry on timeout
+        [{"host": "localhost", "port": 9200}]
     )
 
 es = get_es_client()
